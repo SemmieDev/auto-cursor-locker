@@ -5,7 +5,7 @@ use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::WindowsAndMessaging::{ClipCursor, GetClientRect, GetCursorInfo, GetForegroundWindow, CURSORINFO};
 
 fn main() {
-    loop {
+    'mainLoop: loop {
         println!("Waiting for cursor to be hidden");
 
         if let Err(error) = wait_for_cursor_state(true) {
@@ -44,16 +44,19 @@ fn main() {
             bottom: upper_left.y + client_rect.bottom
         };
 
-        if let Err(error) = unsafe { ClipCursor(Some(&clip_area)) } {
-            eprintln!("Failed to clip cursor: {}", error);
-            continue;
-        }
+        println!("Clipping cursor");
         
-        println!("Clipped cursor");
-        
-        if let Err(error) = wait_for_cursor_state(false) {
-            eprintln!("Failed to wait for cursor to be shown: {}", error);
-            continue;
+        while let Ok(hidden) = get_cursor_hidden() {
+            if !hidden {
+                break;
+            }
+
+            if let Err(error) = unsafe { ClipCursor(Some(&clip_area)) } {
+                eprintln!("Failed to clip cursor: {}", error);
+                continue 'mainLoop;
+            }
+
+            sleep(Duration::from_millis(1));
         }
         
         if let Err(error) = unsafe { ClipCursor(None) } {
@@ -67,17 +70,23 @@ fn main() {
 
 fn wait_for_cursor_state(hidden: bool)-> windows::core::Result<()> {
     loop {
-        let mut cursor_info = CURSORINFO {
-            cbSize: size_of::<CURSORINFO>() as u32,
-            ..CURSORINFO::default()
-        };
+        let cursor_hidden = get_cursor_hidden()?;
 
-        unsafe { GetCursorInfo(&mut cursor_info) }?;
-
-        if (hidden && cursor_info.flags.0 == 0) || (!hidden && cursor_info.flags.0 != 0) {
+        if hidden == cursor_hidden {
             return Ok(());
         }
 
         sleep(Duration::from_millis(10));
     }
+}
+
+fn get_cursor_hidden() -> windows::core::Result<bool> {
+    let mut cursor_info = CURSORINFO {
+        cbSize: size_of::<CURSORINFO>() as u32,
+        ..CURSORINFO::default()
+    };
+
+    unsafe { GetCursorInfo(&mut cursor_info) }?;
+
+    Ok(cursor_info.flags.0 == 0)
 }
