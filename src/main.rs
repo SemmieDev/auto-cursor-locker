@@ -56,7 +56,7 @@ fn main() {
                 continue 'mainLoop;
             }
 
-            sleep(Duration::from_millis(1));
+            sleep(Duration::from_micros(10));
         }
         
         if let Err(error) = unsafe { ClipCursor(None) } {
