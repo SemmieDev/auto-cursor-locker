@@ -2,7 +2,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use windows::Win32::Foundation::{POINT, RECT};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
-use windows::Win32::UI::WindowsAndMessaging::{ClipCursor, GetClientRect, GetCursorInfo, GetForegroundWindow, CURSORINFO};
+use windows::Win32::UI::WindowsAndMessaging::{ClipCursor, GetClientRect, GetCursorInfo, GetCursorPos, WindowFromPoint, CURSORINFO};
 
 fn main() {
     'mainLoop: loop {
@@ -13,26 +13,30 @@ fn main() {
             continue;
         }
 
-        let foreground_window = unsafe { GetForegroundWindow() };
+        let mut cursor_pos = POINT::default();
 
-        if foreground_window.is_invalid() {
-            eprintln!("No foreground window detected");
+        if let Err(error) = unsafe { GetCursorPos(&mut cursor_pos) } {
+            eprintln!("Failed to get cursor position: {error}");
+            continue;
+        }
+
+        let window = unsafe { WindowFromPoint(cursor_pos) };
+
+        if window.is_invalid() {
+            println!("Mouse not over a window");
             continue;
         }
 
         let mut client_rect = RECT::default();
 
-        if let Err(error) = unsafe { GetClientRect(foreground_window, &mut client_rect) } {
-            eprintln!("Failed to get client area: {}", error);
+        if let Err(error) = unsafe { GetClientRect(window, &mut client_rect) } {
+            eprintln!("Failed to get client area: {error}");
             continue;
         }
 
-        let mut upper_left = POINT {
-            x: 0,
-            y: 0
-        };
+        let mut upper_left = POINT::default();
 
-        if !unsafe { ClientToScreen(foreground_window, &mut upper_left) }.as_bool() {
+        if !unsafe { ClientToScreen(window, &mut upper_left) }.as_bool() {
             eprintln!("Failed to get upper left corner");
             continue;
         }
@@ -52,7 +56,7 @@ fn main() {
             }
 
             if let Err(error) = unsafe { ClipCursor(Some(&clip_area)) } {
-                eprintln!("Failed to clip cursor: {}", error);
+                eprintln!("Failed to clip cursor: {error}");
                 continue 'mainLoop;
             }
 
@@ -60,7 +64,7 @@ fn main() {
         }
         
         if let Err(error) = unsafe { ClipCursor(None) } {
-            eprintln!("Failed to unclip cursor: {}", error);
+            eprintln!("Failed to unclip cursor: {error}");
             continue;
         }
         

@@ -1,12 +1,12 @@
 [package]
 name = "auto-cursor-locker"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
 
 [dependencies.windows]
-version = "0.60.0"
+version = "0.61.1"
 features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Graphics_Gdi"
